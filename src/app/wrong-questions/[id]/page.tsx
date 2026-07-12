@@ -192,7 +192,7 @@ export default function WrongQuestionDetailPage() {
         <button onClick={editing ? saveEdit : startEdit}
           disabled={saving}
           style={{
-            padding: "7px 18px", borderRadius: 8, border: "none",
+            padding: "7px 18px", borderRadius: 8,
             background: editing ? "var(--green)" : "var(--surface)",
             color: editing ? "#fff" : "var(--text-muted)",
             border: editing ? "none" : "1px solid var(--border)",
