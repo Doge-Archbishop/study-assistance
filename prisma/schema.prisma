@@ -1,0 +1,257 @@
+// ============================================================
+// 学习助手 · 数据库 Schema
+// Turso (SQLite/libSQL) + Prisma
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ============================================================
+// 知识点 —— 知识图谱的节点，整个系统的中枢
+// ============================================================
+model KnowledgePoint {
+  id          String @id @default(cuid())
+  name        String // "有氧呼吸第三阶段"
+  description String? // 客观定义（知识点标准解释）
+  subject     String // biology | chemistry | english | chinese
+  level       String @default("topic") // chapter | section | topic | detail
+
+  // 树形层级（章节 → 小节 → 知识点 → 细节）
+  parentId String?
+  sortOrder Int    @default(0) // 同级排序
+
+  // Canvas 手动拖拽后的坐标（力导向自动布局时覆盖）
+  positionX Float @default(0)
+  positionY Float @default(0)
+
+  // 用户自己对知识点的理解（区别于 description 的标准定义）
+  customNote String?
+
+  // ---- 自动统计（关联/复习后触发更新） ----
+  masteryLevel       Float @default(0) // 0~100
+  wrongQuestionCount Int   @default(0)
+  totalReviews       Int   @default(0)
+  lastReviewedAt     DateTime?
+
+  // ---- Prisma 关系 ----
+  parent   KnowledgePoint?  @relation("Hierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children KnowledgePoint[] @relation("Hierarchy")
+
+  wrongQuestions WrongQuestionKnowledgePoint[]
+  notes          NoteKnowledgePoint[]
+  vocabularies   VocabularyKnowledgePoint[]
+  reviewLogs     ReviewLog[]
+
+  sourceRelations KnowledgeRelation[] @relation("Source")
+  targetRelations KnowledgeRelation[] @relation("Target")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subject])
+  @@index([parentId])
+  @@index([level])
+}
+
+// ============================================================
+// 知识点之间的关系（知识图谱的有向边）
+// ============================================================
+model KnowledgeRelation {
+  id       String @id @default(cuid())
+  sourceId String
+  targetId String
+  label    String @default("关联") // 自由文本标签
+  type     String @default("related") // prerequisite(前置依赖) | related(关联) | contains(包含) | compare(对比)
+  weight   Float  @default(0.5) // 0~1，图谱中边越粗 = 关联越强
+
+  source KnowledgePoint @relation("Source", fields: [sourceId], references: [id], onDelete: Cascade)
+  target KnowledgePoint @relation("Target", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, targetId])
+  @@index([sourceId])
+  @@index([targetId])
+}
+
+// ============================================================
+// 错题 —— 拍照上传 + AI 解析 + SM-2 复习
+// ============================================================
+model WrongQuestion {
+  id     String @id @default(cuid())
+  images String // JSON 数组: Cloudflare R2 URL
+
+  // ---- 来源标注 ----
+  sourceLabel String? // "2024海淀一模·生物·第12题" / "五三P45·第3题"
+
+  // ---- AI 解析字段 ----
+  subject       String? // biology | chemistry | english | chinese
+  questionText  String? // 题目原文（OCR / 视觉识别）
+  answerText    String? // 作答的错误答案
+  correctAnswer String? // 正确答案
+  analysis      String? // AI 解析：为什么错、考点是什么
+  errorType     String? // concept_unclear | calculation_error | careless | memory_forget | other
+  difficulty    Int     @default(3) // 1~5
+
+  // ---- 用户自己的笔记 ----
+  userNote String? // "以后注意：看到'主要'两个字要选线粒体不是叶绿体"
+
+  // ---- SM-2 间隔重复 ----
+  sm2Repetitions    Int      @default(0)
+  sm2EaseFactor     Float    @default(2.5)
+  sm2Interval       Int      @default(0) // 天
+  sm2NextReviewDate DateTime @default(now())
+
+  // ---- 复习追踪 ----
+  reviewCount    Int       @default(0)
+  lastReviewDate DateTime?
+  masteryLevel   Float     @default(0) // 0~100
+
+  // ---- 关联 ----
+  knowledgePoints WrongQuestionKnowledgePoint[]
+  linkedNotes     NoteWrongQuestion[] // 直接关联的纠错笔记
+  reviewLogs      ReviewLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subject])
+  @@index([sm2NextReviewDate])
+  @@index([createdAt])
+}
+
+// 错题 ↔ 知识点（多对多）
+model WrongQuestionKnowledgePoint {
+  wrongQuestionId String
+  knowledgePointId String
+
+  wrongQuestion  WrongQuestion  @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+  knowledgePoint KnowledgePoint @relation(fields: [knowledgePointId], references: [id], onDelete: Cascade)
+
+  @@id([wrongQuestionId, knowledgePointId])
+}
+
+// 错题 ↔ 笔记（直接关联，如"这道题的订正笔记"）
+model NoteWrongQuestion {
+  noteId           String
+  wrongQuestionId  String
+
+  note           Note           @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  wrongQuestion  WrongQuestion  @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, wrongQuestionId])
+}
+
+// ============================================================
+// 笔记 —— Markdown + 图片 + AI 标签/摘要
+// ============================================================
+model Note {
+  id      String @id @default(cuid())
+  title   String
+  content String // Markdown
+  subject String // biology | chemistry | english | chinese
+  images  String? // JSON 数组: Cloudflare R2 URL（课本截图、板书照片等）
+
+  // 来源
+  source     String  @default("manual") // manual | import | ai-generated
+  sourceFile String? // 批量导入时的原始文件名
+
+  // 置顶
+  isPinned Boolean @default(false)
+
+  // AI 辅助
+  aiTags    String? // JSON 数组，AI 自动打标签
+  aiSummary String? // AI 生成的一句话摘要
+
+  // 关联
+  knowledgePoints   NoteKnowledgePoint[]
+  linkedWrongQuestions NoteWrongQuestion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subject])
+  @@index([isPinned])
+  @@index([updatedAt])
+}
+
+// 笔记 ↔ 知识点（多对多）
+model NoteKnowledgePoint {
+  noteId           String
+  knowledgePointId String
+
+  note           Note           @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  knowledgePoint KnowledgePoint @relation(fields: [knowledgePointId], references: [id], onDelete: Cascade)
+
+  @@id([noteId, knowledgePointId])
+}
+
+// ============================================================
+// 英语单词 —— 独立 SM-2 追踪
+// ============================================================
+model Vocabulary {
+  id            String @id @default(cuid())
+  word          String
+  pronunciation String? // IPA 音标，如 /ˌfəʊtəʊˈsɪnθəsɪs/
+  partOfSpeech  String? // noun | verb | adjective | adverb | phrase
+  meaning       String  // 中文释义
+  example       String? // 例句
+
+  // ---- SM-2 ----
+  sm2Repetitions    Int      @default(0)
+  sm2EaseFactor     Float    @default(2.5)
+  sm2Interval       Int      @default(0)
+  sm2NextReviewDate DateTime @default(now())
+
+  reviewCount    Int       @default(0)
+  lastReviewDate DateTime?
+  masteryLevel   Float     @default(0)
+
+  knowledgePoints VocabularyKnowledgePoint[]
+  reviewLogs      ReviewLog[]
+
+  createdAt DateTime @default(now())
+
+  @@index([sm2NextReviewDate])
+  @@index([word])
+  @@index([masteryLevel])
+}
+
+// 单词 ↔ 知识点（多对多）
+model VocabularyKnowledgePoint {
+  vocabularyId     String
+  knowledgePointId String
+
+  vocabulary     Vocabulary     @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+  knowledgePoint KnowledgePoint @relation(fields: [knowledgePointId], references: [id], onDelete: Cascade)
+
+  @@id([vocabularyId, knowledgePointId])
+}
+
+// ============================================================
+// 复习记录 —— 每次复习行为一条记录，驱动仪表盘图表
+// ============================================================
+model ReviewLog {
+  id        String   @id @default(cuid())
+  itemType  String   // wrong_question | vocabulary | knowledge_point
+
+  // 复习对象（三选一非空，应用层保证）
+  wrongQuestionId  String?
+  vocabularyId     String?
+  knowledgePointId String?
+
+  quality   Int    // SM-2 评分 0~5
+  timeSpent Int?   // 秒
+
+  wrongQuestion  WrongQuestion?  @relation(fields: [wrongQuestionId], references: [id], onDelete: Cascade)
+  vocabulary     Vocabulary?     @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+  knowledgePoint KnowledgePoint? @relation(fields: [knowledgePointId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([itemType, createdAt])
+}
