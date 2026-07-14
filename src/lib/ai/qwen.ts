@@ -49,11 +49,16 @@ export class QwenProvider implements AIProvider {
         }),
       });
 
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        return { success: false, error: `Qwen API ${response.status}: ${errText.slice(0, 200)}` };
+      }
+
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content;
 
       if (!content) {
-        return { success: false, error: "AI 未返回内容" };
+        return { success: false, error: "Qwen AI 未返回内容——API 返回了空 choices" };
       }
 
       const json = content.replace(/```json\n?/g, "").replace(/```/g, "").trim();
@@ -84,6 +89,47 @@ export class QwenProvider implements AIProvider {
         max_tokens: 4096,
       }),
     });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new Error(`Qwen API ${response.status}: ${errText.slice(0, 300)}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content ?? "";
+  }
+
+  /** 通用图片分析（自定义 prompt）—— 给笔记分析等场景复用 */
+  async analyzeImageWithPrompt(
+    imageBase64: string,
+    prompt: string,
+  ): Promise<string> {
+    const response = await fetch(BASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "qwen-vl-plus",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "image_url", image_url: { url: imageBase64 } },
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 8192, // Qwen-VL-Plus 最大支持 8192，笔记分析 JSON 需 3K-5K
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new Error(`Qwen API ${response.status}: ${errText.slice(0, 300)}`);
+    }
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content ?? "";

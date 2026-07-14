@@ -1,8 +1,10 @@
 /**
- * 智谱 GLM-4-Flash Provider
- * 免费主力：文本分析、题目生成、作文素材整理
+ * 智谱 GLM-4.6V-Flash Provider
+ * 免费主力：多模态图片识别（OCR + 错题分析 + 笔记结构化）
  *
- * API 文档: https://open.bigmodel.cn/dev/api/normal-model/glm-4
+ * GLM-4.6V-Flash 是智谱 2025.12 开源的最新视觉模型（9B），128K 上下文 + 32K 输出。
+ * 相比旧版 GLM-4V-Flash：输出从 1K → 32K，API 价格仍为 0。
+ * API 文档: https://docs.bigmodel.cn/cn/guide/models/vlm/glm-4.6v
  */
 
 import type { AIProvider, AIImageAnalysisResult, WrongQuestionAnalysis } from "./types";
@@ -27,7 +29,7 @@ export class ZhipuProvider implements AIProvider {
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: "glm-4-flash",
+          model: "glm-4.6v-flash",
           messages: [
             {
               role: "user",
@@ -48,11 +50,16 @@ export class ZhipuProvider implements AIProvider {
         }),
       });
 
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        return { success: false, error: `智谱 API ${response.status}: ${errText.slice(0, 200)}` };
+      }
+
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content;
 
       if (!content) {
-        return { success: false, error: "AI 未返回内容" };
+        return { success: false, error: "智谱 AI 未返回内容——API 返回了空 choices" };
       }
 
       // 提取 JSON（智谱有时会在 JSON 外包 markdown 代码块）
@@ -68,6 +75,56 @@ export class ZhipuProvider implements AIProvider {
     }
   }
 
+  /** 通用图片分析（自定义 prompt）—— 给笔记分析等场景复用 */
+  async analyzeImageWithPrompt(
+    imageBase64: string,
+    prompt: string,
+  ): Promise<string> {
+    return this.analyzeImageWithModel(imageBase64, prompt, "glm-4.6v-flash", 16384);
+  }
+
+  /**
+   * 指定模型的图片分析（OCR 降级用）
+   * @param model      - 模型名 "glm-4.6v-flash" | "glm-4v-flash"
+   * @param maxTokens  - 对应模型的上限
+   */
+  async analyzeImageWithModel(
+    imageBase64: string,
+    prompt: string,
+    model: string,
+    maxTokens: number,
+  ): Promise<string> {
+    const response = await fetch(BASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "image_url", image_url: { url: imageBase64 } },
+              { type: "text", text: prompt },
+            ],
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: maxTokens,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new Error(`智谱 API ${response.status}: ${errText.slice(0, 300)}`);
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content ?? "";
+  }
+
   async chat(
     messages: { role: string; content: string }[],
   ): Promise<string> {
@@ -78,12 +135,17 @@ export class ZhipuProvider implements AIProvider {
         Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
-        model: "glm-4-flash",
+        model: "glm-4.7-flash", // 文本模型，128K 输出上限
         messages,
-        temperature: 0.7,
-        max_tokens: 4096,
+        temperature: 0.1,
+        max_tokens: 16384,
       }),
     });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => "");
+      throw new Error(`智谱文本 API ${response.status}: ${errText.slice(0, 300)}`);
+    }
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content ?? "";

@@ -4,7 +4,7 @@
  */
 "use client";
 
-import { useRef, useEffect, useCallback, useState, useImperativeHandle, forwardRef } from "react";
+import { useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from "react";
 
 // ── 类型 ──
 export interface GraphNode {
@@ -60,12 +60,15 @@ const SUBJECT_COLORS: Record<string, string> = {
   chinese: "#ff6b6b",
 };
 
+// 知识点级别对应的节点半径（预留，当前半径由服务端数据传入）
 const LEVEL_RADII: Record<string, number> = {
   chapter: 26,
   section: 18,
   topic: 13,
   detail: 8,
 };
+
+void LEVEL_RADII; // 显式标记为预留变量，消除 unused 警告
 
 function masteryColor(level: number, base: string): string {
   if (level >= 80) return base;
@@ -108,23 +111,24 @@ const KnowledgeGraphCanvas = forwardRef<GraphHandle, Props>(function KnowledgeGr
     return { x: (sx - cw / 2) / c.zoom + c.x, y: (sy - ch / 2) / c.zoom + c.y };
   }, []);
 
-  // ── 力导向模拟 ──
+  // ── 力导向模拟（Fruchterman-Reingold 风格）──
+  // 每帧计算三种力：节点间斥力、边弹簧引力、全局中心引力，然后阻尼更新位置
   const simulate = useCallback(() => {
     const ns = nodesRef.current;
     const es = edgesRef.current;
-    const cw = canvasRef.current?.offsetWidth ?? 800;
-    const ch = canvasRef.current?.offsetHeight ?? 600;
-    const cx = cw / 2 / camera.current.zoom + camera.current.x;
-    const cy = ch / 2 / camera.current.zoom + camera.current.y;
+    // 中心引力目标 = 相机位置（屏幕中心对应的世界坐标）
+    const cx = camera.current.x;
+    const cy = camera.current.y;
 
-    // 斥力
+    // 1. 节点间斥力 —— 防重叠，O(n²) 但对高中知识点规模 (~200) 足够
     for (let i = 0; i < ns.length; i++) {
       for (let j = i + 1; j < ns.length; j++) {
         const dx = ns[j].x - ns[i].x;
         const dy = ns[j].y - ns[i].y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1; // 防止除以零
         const minDist = ns[i].radius + ns[j].radius + 40;
         if (dist < minDist * 3) {
+          // 斥力与距离平方成反比，很短程
           const force = 600 / (dist * dist);
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
@@ -134,7 +138,7 @@ const KnowledgeGraphCanvas = forwardRef<GraphHandle, Props>(function KnowledgeGr
       }
     }
 
-    // 边引力
+    // 2. 边弹簧引力 —— 有关系的节点拉近到 rest 距离
     for (const e of es) {
       const s = ns.find((n) => n.id === e.sourceId);
       const t = ns.find((n) => n.id === e.targetId);
@@ -142,6 +146,7 @@ const KnowledgeGraphCanvas = forwardRef<GraphHandle, Props>(function KnowledgeGr
       const dx = t.x - s.x;
       const dy = t.y - s.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      // rest 距离基于两个节点半径 + 60px 间隙，权重越大拉得越紧
       const rest = (s.radius + t.radius + 60) * (1 + e.weight);
       const force = (dist - rest) * 0.003 * e.weight;
       const fx = (dx / dist) * force;
@@ -150,14 +155,15 @@ const KnowledgeGraphCanvas = forwardRef<GraphHandle, Props>(function KnowledgeGr
       t.vx -= fx; t.vy -= fy;
     }
 
-    // 中心引力
+    // 3. 全局中心引力 —— 所有节点向视图中心缓慢聚拢
     for (const n of ns) {
       n.vx += (cx - n.x) * 0.0005;
       n.vy += (cy - n.y) * 0.0005;
     }
 
-    // 更新 + 阻尼
+    // 4. 应用速度 + 阻尼（0.8 = 每帧速度衰减 20%，防止振荡）
     for (const n of ns) {
+      // 正在被拖拽的节点跳过物理模拟
       if (drag.current?.type === "node" && drag.current.nodeId === n.id) continue;
       n.x += n.vx;
       n.y += n.vy;
@@ -180,7 +186,7 @@ const KnowledgeGraphCanvas = forwardRef<GraphHandle, Props>(function KnowledgeGr
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // 背景
-    ctx.fillStyle = "#0a0a0f";
+    ctx.fillStyle = "#121212";
     ctx.fillRect(0, 0, w, h);
 
     // 网格
@@ -260,15 +266,18 @@ const KnowledgeGraphCanvas = forwardRef<GraphHandle, Props>(function KnowledgeGr
       }
     }
 
-    // 关系模式：连线跟随鼠标
-    if (relationMode && relSrcId && drag.current?.type === "node" === false && canvasRef.current) {
+    // 关系模式：从源节点到鼠标/悬停节点画虚线
+    if (relationMode && relSrcId && drag.current?.type !== "node" && canvasRef.current) {
       const sn = ns.find((n) => n.id === relSrcId);
       if (sn) {
         const sp = toScreen(sn.x, sn.y);
+        // 确定线段的终点：优先指向悬停节点，否则指向源节点自身（显示为点）
+        const hoverNode = hovId ? ns.find((n) => n.id === hovId) : null;
+        const ep = hoverNode ? toScreen(hoverNode.x, hoverNode.y) : sp;
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
         ctx.moveTo(sp.x, sp.y);
-        ctx.lineTo(hovId ? toScreen(ns.find((n) => n.id === hovId)!.x, ns.find((n) => n.id === hovId)!.y).x : sp.x, hovId ? toScreen(ns.find((n) => n.id === hovId)!.x, ns.find((n) => n.id === hovId)!.y).y : sp.y);
+        ctx.lineTo(ep.x, ep.y);
         ctx.strokeStyle = "rgba(108,92,231,0.6)";
         ctx.lineWidth = 2;
         ctx.stroke();
@@ -351,7 +360,7 @@ const KnowledgeGraphCanvas = forwardRef<GraphHandle, Props>(function KnowledgeGr
       ctx.textAlign = "center";
       ctx.fillText(relSrcId ? "点击目标节点完成连线" : "点击一个节点作为关系起点", w / 2, 36);
     }
-  }, [edges, toScreen, subjectFilter, relationMode, relationSourceId]);
+  }, [toScreen, subjectFilter, relationMode, relationSourceId]);
 
   // ── 动画循环 ──
   useEffect(() => {
@@ -473,8 +482,8 @@ const KnowledgeGraphCanvas = forwardRef<GraphHandle, Props>(function KnowledgeGr
   // ── 滚轮缩放 ──
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const factor = e.deltaY > 0 ? 0.9 : 1.1;
-    const newZoom = Math.max(0.15, Math.min(3, camera.current.zoom * factor));
+    const factor = e.deltaY > 0 ? 0.97 : 1.03;
+    const newZoom = Math.max(0.2, Math.min(2.5, camera.current.zoom * factor));
 
     // 以鼠标位置为中心缩放
     const rect = canvasRef.current!.getBoundingClientRect();
@@ -520,7 +529,7 @@ const KnowledgeGraphCanvas = forwardRef<GraphHandle, Props>(function KnowledgeGr
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (touchStartDist.current > 0) {
-        camera.current.zoom = Math.max(0.15, Math.min(3, touchStartZoom.current * (dist / touchStartDist.current)));
+        camera.current.zoom = Math.max(0.2, Math.min(2.5, touchStartZoom.current * (dist / touchStartDist.current)));
       }
       return;
     }

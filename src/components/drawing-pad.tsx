@@ -17,12 +17,14 @@ export default function DrawingPad({ onSave, initial, height = 280 }: Props) {
   const [hasContent, setHasContent] = useState(false);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
 
-  // 初始化画布
+  // 初始化画布 DPR 缩放 + 恢复已有绘图（初挂载 + initial 变化时重设）
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
     const ctx = c.getContext("2d")!;
     const dpr = window.devicePixelRatio || 1;
+    // 重置变换矩阵后再设尺寸和缩放，防止 scale() 叠加
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     c.width = c.offsetWidth * dpr;
     c.height = height * dpr;
     ctx.scale(dpr, dpr);
@@ -31,12 +33,15 @@ export default function DrawingPad({ onSave, initial, height = 280 }: Props) {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    // 恢复已有绘图
+    // 恢复已有绘图（onload 中异步 setState，不属于同步调用）
     if (initial) {
       const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, c.offsetWidth, height);
+      img.onload = () => {
+        ctx.clearRect(0, 0, c.offsetWidth, height);
+        ctx.drawImage(img, 0, 0, c.offsetWidth, height);
+        setHasContent(true);
+      };
       img.src = initial;
-      setHasContent(true);
     }
   }, [initial, height]);
 

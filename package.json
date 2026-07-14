@@ -5,18 +5,23 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "next build",
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
+    "@napi-rs/canvas": "^1.0.2",
     "@prisma/adapter-libsql": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "@types/katex": "^0.16.8",
     "katex": "^0.17.0",
+    "lucide": "^1.24.0",
+    "mammoth": "^1.12.0",
     "marked": "^18.0.6",
     "next": "16.2.10",
+    "pdfjs-dist": "4.10",
     "prisma": "^7.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
