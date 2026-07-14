@@ -11,7 +11,16 @@ interface Props {
   content: string;
 }
 
-/** 自定义渲染器：拦截行内/块级公式 + 化学式 */
+/** 自定义渲染管线：公式保护 → Markdown 解析 → 公式还原
+ *
+ *  处理顺序：
+ *    1. 提取块级公式 $$...$$  →  KaTeX 渲染 →  用占位符替换
+ *    2. 提取行内公式 $...$     →  KaTeX 渲染 →  用占位符替换
+ *    3. 将保护后的正文交给 marked 解析为 HTML
+ *    4. 把占位符替换回 KaTeX 渲染结果
+ *
+ *  这样 marked 就不会把公式里的 _ 、^ 等字符误解析为 Markdown 语法
+ */
 function renderMarkdown(raw: string): string {
   let source = raw;
 
@@ -23,7 +32,6 @@ function renderMarkdown(raw: string): string {
         katex.renderToString(formula.trim(), {
           displayMode: true,
           throwOnError: false,
-          trust: true,
         }),
       );
     } catch {
@@ -40,7 +48,6 @@ function renderMarkdown(raw: string): string {
         katex.renderToString(formula.trim(), {
           displayMode: false,
           throwOnError: false,
-          trust: true,
         }),
       );
     } catch {

@@ -2,6 +2,7 @@
  * 笔记列表页 —— 学科筛选 + 搜索 + 置顶
  */
 "use client";
+import { LucideIcon } from "@/components/lucide-icon";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -19,10 +20,10 @@ interface NoteItem {
 
 const SUBJECTS = [
   { key: "", label: "全部", color: "var(--text-muted)" },
-  { key: "biology", label: "生物", color: "#51cf66" },
-  { key: "chemistry", label: "化学", color: "#4dabf7" },
-  { key: "english", label: "英语", color: "#ffd43b" },
-  { key: "chinese", label: "语文", color: "#ff6b6b" },
+  { key: "biology", label: "生物", color: "#81C995" },
+  { key: "chemistry", label: "化学", color: "#8AB4F8" },
+  { key: "english", label: "英语", color: "#FDD663" },
+  { key: "chinese", label: "语文", color: "#F28B82" },
 ];
 
 export default function NotesPage() {
@@ -32,6 +33,7 @@ export default function NotesPage() {
   const [subject, setSubject] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+
 
   const fetchNotes = useCallback(async (s: string, q: string) => {
     setLoading(true);
@@ -76,59 +78,40 @@ export default function NotesPage() {
     SUBJECTS.find((x) => x.key === s)?.color || "var(--text-muted)";
 
   return (
-    <div style={{ flex: 1, maxWidth: 720, margin: "0 auto", padding: "0 16px 40px" }}>
+    <div style={st.wrapper}>
       {/* 顶栏 */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          padding: "24px 0",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link href="/" style={{ color: "var(--accent)", textDecoration: "none", fontSize: 14 }}>
-            ←
-          </Link>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>笔记</h2>
-          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{total} 篇</span>
+      <header style={st.header}>
+        <div style={st.headerLeft}>
+          <h2 style={st.pageTitle}>笔记</h2>
+          <span style={st.count}>{total} 篇</span>
         </div>
-        <Link
-          href="/notes/new"
-          style={{
-            padding: "8px 18px",
-            borderRadius: 8,
-            background: "var(--accent)",
-            color: "#fff",
-            textDecoration: "none",
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
-          + 新建
-        </Link>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Link href="/notes/upload" className="btn btn-secondary" style={{ padding: "8px 14px" }}>
+            <LucideIcon name="upload" size={15} />
+            上传分析
+          </Link>
+          <Link href="/notes/new" className="btn btn-primary" style={{ padding: "8px 18px" }}>
+            <LucideIcon name="plus" size={16} />
+            新建
+          </Link>
+        </div>
       </header>
 
       {/* 学科筛选 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        {SUBJECTS.map((s) => (
+      <div style={st.filterBar}>
+        {SUBJECTS.map((sub) => (
           <button
-            key={s.key}
-            onClick={() => setSubject(s.key)}
+            key={sub.key}
+            onClick={() => setSubject(sub.key)}
             style={{
-              padding: "5px 14px",
-              borderRadius: 20,
-              border: subject === s.key ? "1.5px solid" : "1px solid var(--border)",
-              borderColor: subject === s.key ? s.color : "var(--border)",
-              background: subject === s.key ? `${s.color}15` : "var(--surface)",
-              color: subject === s.key ? s.color : "var(--text-muted)",
-              fontSize: 13,
-              fontWeight: subject === s.key ? 600 : 400,
-              cursor: "pointer",
+              ...st.filterBtn,
+              borderColor: subject === sub.key ? sub.color : "var(--border)",
+              background: subject === sub.key ? `${sub.color}15` : "transparent",
+              color: subject === sub.key ? sub.color : "var(--text-secondary)",
+              fontWeight: subject === sub.key ? 600 : 400,
             }}
           >
-            {s.label}
+            {sub.label}
           </button>
         ))}
       </div>
@@ -139,41 +122,26 @@ export default function NotesPage() {
         placeholder="搜索笔记..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: "100%",
-          padding: "10px 14px",
-          borderRadius: 10,
-          border: "1px solid var(--border)",
-          background: "var(--surface)",
-          color: "var(--text)",
-          fontSize: 14,
-          marginBottom: 16,
-          outline: "none",
-          boxSizing: "border-box",
-        }}
+        className="input"
+        style={{ marginBottom: 16 }}
       />
 
       {/* 列表 */}
       {loading ? (
-        <p style={{ color: "var(--text-muted)", textAlign: "center", padding: 40 }}>加载中...</p>
+        <p style={{ color: "var(--text-secondary)", textAlign: "center", padding: 40 }}>加载中...</p>
       ) : notes.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)" }}>
-          <p style={{ fontSize: 32, margin: "0 0 12px" }}>📝</p>
-          <p style={{ margin: 0 }}>还没有笔记，写第一篇吧</p>
+        <div style={st.empty}>
+          <LucideIcon name="file-text" size={40} />
+          <p style={{ margin: "12px 0 0", color: "var(--text-secondary)" }}>还没有笔记，写第一篇吧</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={st.list}>
           {notes.map((note) => (
             <div
               key={note.id}
+              className="card"
               style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 12,
-                padding: "14px 16px",
-                borderRadius: 12,
-                border: "1px solid var(--border)",
-                background: note.isPinned ? "var(--surface)" : "transparent",
+                ...st.noteItem,
                 borderColor: note.isPinned ? "var(--accent)" : "var(--border)",
               }}
             >
@@ -186,48 +154,25 @@ export default function NotesPage() {
                   background: subjectColor(note.subject),
                   flexShrink: 0,
                   marginTop: 2,
+                  boxShadow: `0 0 6px ${subjectColor(note.subject)}40`,
                 }}
               />
 
               {/* 内容 */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <Link
-                  href={`/notes/${note.id}`}
-                  style={{
-                    fontSize: 15,
-                    fontWeight: 600,
-                    color: "var(--text)",
-                    textDecoration: "none",
-                    display: "block",
-                    marginBottom: 4,
-                  }}
-                >
-                  {note.isPinned && "📌 "}
+                <Link href={`/notes/${note.id}`} style={st.noteTitle}>
                   {note.title || "无标题"}
                 </Link>
                 {note.aiSummary && (
-                  <p
-                    style={{
-                      margin: "0 0 6px",
-                      fontSize: 13,
-                      color: "var(--text-muted)",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {note.aiSummary}
-                  </p>
+                  <p style={st.noteSummary}>{note.aiSummary}</p>
                 )}
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 4 }}>
                   {note.knowledgePoints?.map((kp) => (
                     <span
                       key={kp.knowledgePoint.id}
+                      className="tag"
                       style={{
-                        fontSize: 11,
-                        padding: "2px 8px",
-                        borderRadius: 10,
-                        background: `${subjectColor(note.subject)}20`,
+                        background: `${subjectColor(note.subject)}18`,
                         color: subjectColor(note.subject),
                       }}
                     >
@@ -238,7 +183,7 @@ export default function NotesPage() {
               </div>
 
               {/* 操作 */}
-              <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
+              <div style={st.noteActions}>
                 <span style={{ fontSize: 11, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
                   {formatDate(note.updatedAt)}
                 </span>
@@ -246,30 +191,19 @@ export default function NotesPage() {
                   onClick={() => handlePin(note)}
                   title={note.isPinned ? "取消置顶" : "置顶"}
                   style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    padding: 2,
-                    opacity: note.isPinned ? 1 : 0.3,
+                    ...st.iconBtn,
+                    opacity: note.isPinned ? 1 : 0.25,
+                    color: note.isPinned ? "var(--accent)" : "var(--text-muted)",
                   }}
                 >
-                  📌
+                  <LucideIcon name="pin" size={14} />
                 </button>
                 <button
                   onClick={() => handleDelete(note.id)}
                   title="删除"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    padding: 2,
-                    opacity: 0.3,
-                    color: "var(--text-muted)",
-                  }}
+                  style={{ ...st.iconBtn, opacity: 0.25 }}
                 >
-                  🗑
+                  <LucideIcon name="trash-2" size={14} />
                 </button>
               </div>
             </div>
@@ -279,3 +213,66 @@ export default function NotesPage() {
     </div>
   );
 }
+
+const st: Record<string, React.CSSProperties> = {
+  wrapper: { flex: 1, maxWidth: 720, margin: "0 auto", padding: "24px 16px 40px" },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 20,
+  },
+  headerLeft: { display: "flex", alignItems: "baseline", gap: 10 },
+  pageTitle: { fontSize: 22, fontWeight: 700, margin: 0 },
+  count: { fontSize: 13, color: "var(--text-muted)" },
+  filterBar: { display: "flex", gap: 6, marginBottom: 14 },
+  filterBtn: {
+    padding: "6px 14px",
+    borderRadius: 20,
+    border: "1px solid var(--border)",
+    background: "transparent",
+    fontSize: 13,
+    cursor: "pointer",
+    transition: "all 0.15s",
+    fontFamily: "var(--font-sans)",
+  },
+  empty: { textAlign: "center", padding: 60, color: "var(--text-muted)" },
+  list: { display: "flex", flexDirection: "column", gap: 8 },
+  noteItem: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: 14,
+    padding: "16px",
+  },
+  noteTitle: {
+    fontSize: 15,
+    fontWeight: 600,
+    color: "var(--text)",
+    textDecoration: "none",
+    display: "block",
+    marginBottom: 5,
+  },
+  noteSummary: {
+    margin: "0 0 6px",
+    fontSize: 13,
+    color: "var(--text-secondary)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  noteActions: {
+    display: "flex",
+    gap: 6,
+    alignItems: "center",
+    flexShrink: 0,
+  },
+  iconBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: 2,
+    color: "var(--text-muted)",
+    transition: "opacity 0.15s",
+  },
+};

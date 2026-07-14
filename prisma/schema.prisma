@@ -56,7 +56,11 @@ model KnowledgePoint {
   @@index([subject])
   @@index([parentId])
   @@index([level])
+  @@index([masteryLevel])
+  @@index([name])
 }
+
+// KnowledgePoint
 
 // ============================================================
 // 知识点之间的关系（知识图谱的有向边）
@@ -121,6 +125,8 @@ model WrongQuestion {
   @@index([subject])
   @@index([sm2NextReviewDate])
   @@index([createdAt])
+  @@index([masteryLevel])
+  @@index([subject, createdAt])
 }
 
 // 错题 ↔ 知识点（多对多）
@@ -176,7 +182,10 @@ model Note {
   @@index([subject])
   @@index([isPinned])
   @@index([updatedAt])
+  @@index([isPinned, updatedAt])
 }
+
+// Note
 
 // 笔记 ↔ 知识点（多对多）
 model NoteKnowledgePoint {
@@ -218,7 +227,10 @@ model Vocabulary {
   @@index([sm2NextReviewDate])
   @@index([word])
   @@index([masteryLevel])
+  @@index([masteryLevel, createdAt])
 }
+
+// Vocabulary
 
 // 单词 ↔ 知识点（多对多）
 model VocabularyKnowledgePoint {

@@ -2,6 +2,7 @@
  * 单词本 —— 列表 + 搜索 + 复习统计
  */
 "use client";
+import { LucideIcon } from "@/components/lucide-icon";
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -21,11 +22,11 @@ interface VocabItem {
 }
 
 const PART_COLORS: Record<string, string> = {
-  noun: "#ffd43b",
-  verb: "#4dabf7",
-  adjective: "#51cf66",
-  adverb: "#ff922b",
-  phrase: "#ff6b6b",
+  noun: "#FDD663",
+  verb: "#8AB4F8",
+  adjective: "#81C995",
+  adverb: "#FFB74D",
+  phrase: "#F28B82",
 };
 
 export default function VocabularyPage() {
@@ -33,6 +34,7 @@ export default function VocabularyPage() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+
 
   const fetchWords = useCallback(async (q: string) => {
     setLoading(true);
@@ -45,7 +47,9 @@ export default function VocabularyPage() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchWords(search); }, [search, fetchWords]);
+  useEffect(() => {
+    fetchWords(search);
+  }, [search, fetchWords]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("确定删除？")) return;
@@ -54,88 +58,101 @@ export default function VocabularyPage() {
   };
 
   const masteryLabel = (level: number) => {
-    if (level >= 80) return { text: "已掌握", color: "#51cf66" };
-    if (level >= 50) return { text: "学习中", color: "#ffd43b" };
-    if (level > 0) return { text: "薄弱", color: "#ff922b" };
+    if (level >= 80) return { text: "已掌握", color: "#81C995" };
+    if (level >= 50) return { text: "学习中", color: "#FDD663" };
+    if (level > 0) return { text: "薄弱", color: "#FFB74D" };
     return { text: "新词", color: "var(--text-muted)" };
   };
 
   return (
-    <div style={{ flex: 1, maxWidth: 720, margin: "0 auto", padding: "0 16px 40px" }}>
-      <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "24px 0 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link href="/" style={{ color: "var(--accent)", textDecoration: "none", fontSize: 14 }}>←</Link>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>单词本</h2>
-          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{total} 词</span>
+    <div style={s.wrapper}>
+      <header style={s.header}>
+        <div style={s.headerLeft}>
+          <h2 style={s.pageTitle}>单词本</h2>
+          <span style={s.count}>{total} 词</span>
         </div>
-        <Link href="/vocabulary/new" style={{
-          padding: "7px 16px", borderRadius: 8, background: "var(--accent)", color: "#fff",
-          textDecoration: "none", fontSize: 13, fontWeight: 600,
-        }}>+ 添加</Link>
+        <Link href="/vocabulary/new" className="btn btn-primary" style={{ padding: "8px 18px" }}>
+          <LucideIcon name="plus" size={16} />
+          添加
+        </Link>
       </header>
 
       {/* 搜索 */}
       <input
-        type="text" placeholder="搜索单词或释义..." value={search}
+        type="text"
+        placeholder="搜索单词或释义..."
+        value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: "100%", padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)",
-          background: "var(--surface)", color: "var(--text)", fontSize: 14, outline: "none",
-          marginBottom: 16, boxSizing: "border-box",
-        }}
+        className="input"
+        style={{ marginBottom: 16 }}
       />
 
       {loading ? (
-        <p style={{ color: "var(--text-muted)", textAlign: "center", padding: 40 }}>加载中...</p>
+        <p style={{ color: "var(--text-secondary)", textAlign: "center", padding: 40 }}>
+          加载中...
+        </p>
       ) : words.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)" }}>
-          <p style={{ fontSize: 32, margin: "0 0 12px" }}>📖</p>
-          <p style={{ margin: 0 }}>单词本还是空的</p>
-          <Link href="/vocabulary/new" style={{ color: "var(--accent)", fontSize: 14 }}>添加第一个单词 →</Link>
+        <div style={s.empty}>
+          <LucideIcon name="book-open" size={40} color="var(--text-muted)" style={{ opacity: 0.4 }} />
+          <p style={{ margin: "12px 0 0", color: "var(--text-secondary)" }}>单词本还是空的</p>
+          <Link href="/vocabulary/new" style={{ color: "var(--accent)", fontSize: 14, marginTop: 8 }}>
+            添加第一个单词 →
+          </Link>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={s.list}>
           {words.map((w) => {
             const ml = masteryLabel(w.masteryLevel);
             const posColor = PART_COLORS[w.partOfSpeech || ""] || "var(--accent)";
             return (
-              <div key={w.id} style={{
-                display: "flex", alignItems: "center", gap: 12,
-                padding: "12px 14px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)",
-              }}>
+              <div key={w.id} className="card" style={s.wordItem}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
-                    <Link href={`/vocabulary/${w.id}`} style={{
-                      fontSize: 16, fontWeight: 700, color: "var(--text)", textDecoration: "none",
-                    }}>
+                  <div style={s.wordHeader}>
+                    <Link href={`/vocabulary/${w.id}`} style={s.wordText}>
                       {w.word}
                     </Link>
                     {w.partOfSpeech && (
-                      <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 8, background: `${posColor}20`, color: posColor }}>
+                      <span
+                        className="tag"
+                        style={{ background: `${posColor}18`, color: posColor }}
+                      >
                         {w.partOfSpeech}
                       </span>
                     )}
                     {w.pronunciation && (
-                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>/{w.pronunciation}/</span>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        /{w.pronunciation}/
+                      </span>
                     )}
                   </div>
-                  <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>
+                  <p style={s.wordMeaning}>
                     {w.meaning}
-                    {w.example && <span style={{ opacity: 0.5, marginLeft: 6 }}>— {w.example}</span>}
+                    {w.example && (
+                      <span style={{ opacity: 0.45, marginLeft: 8 }}>
+                        — {w.example}
+                      </span>
+                    )}
                   </p>
                 </div>
 
                 {/* 掌握度 */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                  <span style={{ fontSize: 11, color: ml.color }}>{ml.text}</span>
+                <div style={s.mastery}>
+                  <span style={{ fontSize: 11, fontWeight: 500, color: ml.color }}>
+                    {ml.text}
+                  </span>
                   {w.reviewCount > 0 && (
-                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>复习{w.reviewCount}次</span>
+                    <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                      复习{w.reviewCount}次
+                    </span>
                   )}
                 </div>
 
-                <button onClick={() => handleDelete(w.id)}
-                  style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: 12, opacity: 0.3, flexShrink: 0 }}>
-                  🗑
+                <button
+                  onClick={() => handleDelete(w.id)}
+                  style={s.delBtn}
+                  title="删除"
+                >
+                  <LucideIcon name="trash-2" size={14} />
                 </button>
               </div>
             );
@@ -145,3 +162,58 @@ export default function VocabularyPage() {
     </div>
   );
 }
+
+const s: Record<string, React.CSSProperties> = {
+  wrapper: { flex: 1, maxWidth: 720, margin: "0 auto", padding: "24px 16px 40px" },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  headerLeft: { display: "flex", alignItems: "baseline", gap: 10 },
+  pageTitle: { fontSize: 22, fontWeight: 700, margin: 0 },
+  count: { fontSize: 13, color: "var(--text-muted)" },
+  empty: { textAlign: "center", padding: 60, color: "var(--text-muted)" },
+  list: { display: "flex", flexDirection: "column", gap: 6 },
+  wordItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    padding: "14px 16px",
+  },
+  wordHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  wordText: {
+    fontSize: 16,
+    fontWeight: 700,
+    color: "var(--text)",
+    textDecoration: "none",
+  },
+  wordMeaning: {
+    fontSize: 13,
+    color: "var(--text-secondary)",
+    margin: 0,
+  },
+  mastery: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    flexShrink: 0,
+    gap: 1,
+  },
+  delBtn: {
+    background: "none",
+    border: "none",
+    color: "var(--text-muted)",
+    cursor: "pointer",
+    opacity: 0.2,
+    flexShrink: 0,
+    padding: 4,
+    transition: "opacity 0.15s",
+  },
+};

@@ -19,6 +19,17 @@ export interface AIImageAnalysisResult {
   error?: string;
 }
 
+/** 笔记 AI 分析结果 */
+export interface NoteAnalysisResult {
+  title: string;
+  content: string;
+  summary: string;
+  tags: string[];
+  subject: Subject;
+  knowledgePoints: { name: string; level: string; description?: string }[];
+  relations: { source: string; target: string; type: string; label: string }[];
+}
+
 export interface AIProvider {
   /** 分析错题图片，返回结构化解析结果 */
   analyzeWrongQuestion(

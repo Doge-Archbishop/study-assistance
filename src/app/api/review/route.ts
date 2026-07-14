@@ -69,7 +69,13 @@ export async function POST(request: NextRequest) {
       currentState.sm2Interval,
     );
 
-    // 3. 更新 + 记录日志
+    // 3. 更新 masteryLevel（基于 SM-2 状态计算）
+    const mastery = Math.min(
+      100,
+      Math.round((next.easeFactor / 3.0) * (next.repetitions / (next.repetitions + 3)) * 100),
+    );
+
+    // 4. 更新 + 记录日志
     if (itemType === "wrong_question") {
       await prisma.wrongQuestion.update({
         where: { id: itemId },
@@ -80,6 +86,7 @@ export async function POST(request: NextRequest) {
           sm2NextReviewDate: next.nextReviewDate,
           reviewCount: { increment: 1 },
           lastReviewDate: new Date(),
+          masteryLevel: mastery,
         },
       });
       await prisma.reviewLog.create({
@@ -95,6 +102,7 @@ export async function POST(request: NextRequest) {
           sm2NextReviewDate: next.nextReviewDate,
           reviewCount: { increment: 1 },
           lastReviewDate: new Date(),
+          masteryLevel: mastery,
         },
       });
       await prisma.reviewLog.create({
@@ -106,7 +114,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("复习记录失败:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "服务器错误" },
+      { error: process.env.NODE_ENV === "production" ? "服务器错误" : (err instanceof Error ? err.message : "服务器错误") },
       { status: 500 },
     );
   }
@@ -114,54 +122,63 @@ export async function POST(request: NextRequest) {
 
 // ---- 获取今日待复习 ----
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const mode = searchParams.get("mode") || "due";
-  const now = new Date();
+  try {
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get("mode") || "due";
+    const now = new Date();
 
-  if (mode === "due") {
-    const [questions, vocabularies] = await Promise.all([
-      prisma.wrongQuestion.findMany({
-        where: { sm2NextReviewDate: { lte: now } },
-        include: { knowledgePoints: { include: { knowledgePoint: true } } },
-        orderBy: { sm2NextReviewDate: "asc" },
-      }),
-      prisma.vocabulary.findMany({
-        where: { sm2NextReviewDate: { lte: now } },
-        orderBy: { sm2NextReviewDate: "asc" },
-      }),
-    ]);
+    if (mode === "due") {
+      const [questions, vocabularies] = await Promise.all([
+        prisma.wrongQuestion.findMany({
+          where: { sm2NextReviewDate: { lte: now } },
+          include: { knowledgePoints: { include: { knowledgePoint: true } } },
+          orderBy: { sm2NextReviewDate: "asc" },
+        }),
+        prisma.vocabulary.findMany({
+          where: { sm2NextReviewDate: { lte: now } },
+          orderBy: { sm2NextReviewDate: "asc" },
+        }),
+      ]);
 
-    return NextResponse.json({
-      questions: questions.map((q) => ({
-        id: q.id,
-        subject: q.subject,
-        questionText: q.questionText,
-        images: JSON.parse(q.images),
-        difficulty: q.difficulty,
-        knowledgePoints: q.knowledgePoints.map((k) => k.knowledgePoint.name),
-        sm2: {
-          repetitions: q.sm2Repetitions,
-          easeFactor: q.sm2EaseFactor,
-          interval: q.sm2Interval,
-          nextReviewDate: q.sm2NextReviewDate,
-        },
-        reviewCount: q.reviewCount,
-        masteryLevel: q.masteryLevel,
-      })),
-      vocabularies: vocabularies.map((v) => ({
-        id: v.id,
-        word: v.word,
-        meaning: v.meaning,
-        pronunciation: v.pronunciation,
-        sm2: {
-          repetitions: v.sm2Repetitions,
-          easeFactor: v.sm2EaseFactor,
-          interval: v.sm2Interval,
-          nextReviewDate: v.sm2NextReviewDate,
-        },
-      })),
-    });
+      return NextResponse.json({
+        questions: questions.map((q) => ({
+          id: q.id,
+          subject: q.subject,
+          questionText: q.questionText,
+          correctAnswer: q.correctAnswer,
+          analysis: q.analysis,
+          sourceLabel: q.sourceLabel,
+          userNote: q.userNote,
+          images: JSON.parse(q.images),
+          difficulty: q.difficulty,
+          knowledgePoints: q.knowledgePoints.map((k) => k.knowledgePoint.name),
+          sm2: {
+            repetitions: q.sm2Repetitions,
+            easeFactor: q.sm2EaseFactor,
+            interval: q.sm2Interval,
+            nextReviewDate: q.sm2NextReviewDate,
+          },
+          reviewCount: q.reviewCount,
+          masteryLevel: q.masteryLevel,
+        })),
+        vocabularies: vocabularies.map((v) => ({
+          id: v.id,
+          word: v.word,
+          meaning: v.meaning,
+          pronunciation: v.pronunciation,
+          sm2: {
+            repetitions: v.sm2Repetitions,
+            easeFactor: v.sm2EaseFactor,
+            interval: v.sm2Interval,
+            nextReviewDate: v.sm2NextReviewDate,
+          },
+        })),
+      });
+    }
+
+    return NextResponse.json({ error: "未知模式" }, { status: 400 });
+  } catch (err) {
+    console.error("获取复习列表失败:", err);
+    return NextResponse.json({ error: "服务器错误" }, { status: 500 });
   }
-
-  return NextResponse.json({ error: "未知模式" }, { status: 400 });
 }

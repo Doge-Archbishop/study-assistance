@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getPrimaryProvider } from "@/lib/ai";
+import { chatWithFallback } from "@/lib/ai";
 
 // ── 获取单篇笔记 ──
 export async function GET(
@@ -68,7 +68,7 @@ export async function PUT(
   } catch (err) {
     console.error("更新笔记失败:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "服务器错误" },
+      { error: process.env.NODE_ENV === "production" ? "服务器错误" : (err instanceof Error ? err.message : "服务器错误") },
       { status: 500 },
     );
   }
@@ -79,9 +79,16 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
-  await prisma.note.delete({ where: { id } });
-  return NextResponse.json({ success: true });
+  try {
+    const { id } = await params;
+    const existing = await prisma.note.findUnique({ where: { id } });
+    if (!existing) return NextResponse.json({ error: "笔记不存在" }, { status: 404 });
+    await prisma.note.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("删除笔记失败:", err);
+    return NextResponse.json({ error: "服务器错误" }, { status: 500 });
+  }
 }
 
 // ── AI 标签/摘要 ──
@@ -96,7 +103,6 @@ export async function POST(
       return NextResponse.json({ error: "笔记不存在" }, { status: 404 });
     }
 
-    const provider = getPrimaryProvider();
     const prompt = `你是一位高三复习助手。分析以下笔记，返回 JSON：
 {
   "tags": ["标签1", "标签2", "标签3"],
@@ -106,9 +112,11 @@ export async function POST(
 笔记标题：${note.title}
 笔记内容：${note.content.slice(0, 3000)}`;
 
-    const result = await provider.chat([
-      { role: "user", content: prompt },
-    ]);
+    // DeepSeek (tag 任务 → Flash) → GLM-4V-Flash 兜底
+    const result = await chatWithFallback(
+      [{ role: "user", content: prompt }],
+      "tag",
+    );
 
     // 提取 JSON
     const jsonMatch = result.match(/\{[\s\S]*\}/);
@@ -132,7 +140,7 @@ export async function POST(
   } catch (err) {
     console.error("AI 标签生成失败:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "AI 标签失败" },
+      { error: process.env.NODE_ENV === "production" ? "AI 标签失败" : (err instanceof Error ? err.message : "AI 标签失败") },
       { status: 500 },
     );
   }

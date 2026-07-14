@@ -16,6 +16,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "未提供图片" }, { status: 400 });
     }
 
+    // 校验类型和大小
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(imageFile.type)) {
+      return NextResponse.json(
+        { error: "仅支持 JPG/PNG/WebP 格式" },
+        { status: 400 },
+      );
+    }
+    const MAX_SIZE = 4 * 1024 * 1024; // 4MB（Vercel 免费版限制 4.5MB）
+    if (imageFile.size > MAX_SIZE) {
+      return NextResponse.json(
+        { error: "图片大小不能超过 10MB" },
+        { status: 400 },
+      );
+    }
+
     // 1. 图片转 base64
     const buffer = Buffer.from(await imageFile.arrayBuffer());
     const base64 = `data:${imageFile.type};base64,${buffer.toString("base64")}`;
@@ -87,26 +103,31 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("错题上传失败:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "服务器错误" },
+      { error: process.env.NODE_ENV === "production" ? "服务器错误" : (err instanceof Error ? err.message : "服务器错误") },
       { status: 500 },
     );
   }
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const subject = searchParams.get("subject");
+  try {
+    const { searchParams } = new URL(request.url);
+    const subject = searchParams.get("subject");
 
-  const questions = await prisma.wrongQuestion.findMany({
-    where: subject ? { subject } : undefined,
-    include: {
-      knowledgePoints: {
-        include: { knowledgePoint: true },
+    const questions = await prisma.wrongQuestion.findMany({
+      where: subject ? { subject } : undefined,
+      include: {
+        knowledgePoints: {
+          include: { knowledgePoint: true },
+        },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
 
-  return NextResponse.json(questions);
+    return NextResponse.json(questions);
+  } catch (err) {
+    console.error("获取错题列表失败:", err);
+    return NextResponse.json({ error: "服务器错误" }, { status: 500 });
+  }
 }

@@ -1,3 +1,4 @@
+import { LucideIcon } from "@/components/lucide-icon";
 /**
  * 错题列表页 —— 学科筛选 + 点击进入详情
  */
@@ -6,7 +7,7 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-const SUBJECTS: Record<string, string> = {
+const SUBJECTS_MAP: Record<string, string> = {
   biology: "生物",
   chemistry: "化学",
   english: "英语",
@@ -14,10 +15,10 @@ const SUBJECTS: Record<string, string> = {
 };
 
 const SUBJECT_COLORS: Record<string, string> = {
-  biology: "#51cf66",
-  chemistry: "#4dabf7",
-  english: "#ffd43b",
-  chinese: "#ff6b6b",
+  biology: "#81C995",
+  chemistry: "#8AB4F8",
+  english: "#FDD663",
+  chinese: "#F28B82",
 };
 
 export default async function WrongQuestionsPage({
@@ -37,81 +38,82 @@ export default async function WrongQuestionsPage({
   });
 
   return (
-    <div style={{ flex: 1, maxWidth: 720, margin: "0 auto", padding: "0 16px 40px" }}>
-      <header style={{ display: "flex", alignItems: "center", gap: 12, padding: "24px 0 16px" }}>
-        <Link href="/" style={{ color: "var(--accent)", textDecoration: "none", fontSize: 14 }}>←</Link>
-        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, flex: 1 }}>错题库</h2>
-        <span style={{ fontSize: 13, color: "var(--text-muted)", marginRight: 8 }}>{questions.length} 题</span>
-        <Link href="/wrong-questions/upload" style={{
-          padding: "7px 16px", borderRadius: 8, background: "var(--accent)", color: "#fff",
-          textDecoration: "none", fontSize: 13, fontWeight: 600,
-        }}>+ 上传</Link>
+    <div style={st.wrapper}>
+      <header style={st.header}>
+        <div style={st.headerLeft}>
+          <h2 style={st.pageTitle}>错题库</h2>
+          <span style={st.count}>{questions.length} 题</span>
+        </div>
+        <Link href="/wrong-questions/upload" className="btn btn-primary" style={{ padding: "8px 18px" }}>
+          <LucideIcon name="plus" size={16} />
+          上传
+        </Link>
       </header>
 
       {/* 学科筛选 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+      <div style={st.filterBar}>
         {[
           { key: "", label: "全部" },
           { key: "biology", label: "生物" },
           { key: "chemistry", label: "化学" },
           { key: "english", label: "英语" },
           { key: "chinese", label: "语文" },
-        ].map((s) => {
-          const active = (subject || "") === s.key;
-          const color = SUBJECT_COLORS[s.key] || "var(--text-muted)";
+        ].map((sub) => {
+          const active = (subject || "") === sub.key;
+          const color = SUBJECT_COLORS[sub.key] || "var(--text-muted)";
           return (
             <Link
-              key={s.key}
-              href={s.key ? `/wrong-questions?subject=${s.key}` : "/wrong-questions"}
+              key={sub.key}
+              href={sub.key ? `/wrong-questions?subject=${sub.key}` : "/wrong-questions"}
               style={{
-                padding: "5px 14px", borderRadius: 20, fontSize: 13,
-                border: active ? `1.5px solid ${color}` : "1px solid var(--border)",
+                ...st.filterBtn,
+                borderColor: active ? color : "var(--border)",
                 background: active ? `${color}15` : "transparent",
-                color: active ? color : "var(--text-muted)",
-                textDecoration: "none", fontWeight: active ? 600 : 400,
+                color: active ? color : "var(--text-secondary)",
+                fontWeight: active ? 600 : 400,
               }}
             >
-              {s.label}
+              {sub.label}
             </Link>
           );
         })}
       </div>
 
       {questions.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--text-muted)" }}>
-          <p style={{ fontSize: 32, margin: "0 0 12px" }}>📷</p>
-          <p style={{ margin: 0 }}>还没有错题，拍照上传第一道吧</p>
+        <div style={st.empty}>
+          <LucideIcon name="camera" size={40} />
+          <p style={{ margin: "12px 0 0", color: "var(--text-secondary)" }}>还没有错题，拍照上传第一道吧</p>
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={st.list}>
           {questions.map((q) => {
             const color = SUBJECT_COLORS[q.subject || ""] || "var(--accent)";
             return (
               <Link
                 key={q.id}
                 href={`/wrong-questions/${q.id}`}
-                style={{
-                  display: "block", padding: "14px 16px", borderRadius: 12,
-                  background: "var(--surface)", border: "1px solid var(--border)",
-                  textDecoration: "none", transition: "border-color 0.15s",
-                }}
+                className="card"
+                style={st.questionItem}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color }}>{SUBJECTS[q.subject || ""] || q.subject}</span>
+                <div style={st.questionMeta}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color }}>
+                    {SUBJECTS_MAP[q.subject || ""] || q.subject}
+                  </span>
                   <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
                     {new Date(q.createdAt).toLocaleDateString("zh-CN")}
                     {q.reviewCount > 0 && ` · 复习${q.reviewCount}次`}
                   </span>
                 </div>
-                <p style={{ fontSize: 14, lineHeight: 1.5, margin: "0 0 10px", color: "var(--text)" }}>
+                <p style={st.questionText}>
                   {(q.questionText || "（查看详情）").slice(0, 150)}
                 </p>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                   {q.knowledgePoints.map((kp) => (
-                    <span key={kp.knowledgePointId} style={{
-                      fontSize: 11, padding: "2px 8px", borderRadius: 12,
-                      background: `${color}15`, color,
-                    }}>
+                    <span
+                      key={kp.knowledgePointId}
+                      className="tag"
+                      style={{ background: `${color}18`, color }}
+                    >
                       {kp.knowledgePoint.name}
                     </span>
                   ))}
@@ -124,3 +126,38 @@ export default async function WrongQuestionsPage({
     </div>
   );
 }
+
+const st: Record<string, React.CSSProperties> = {
+  wrapper: { flex: 1, maxWidth: 720, margin: "0 auto", padding: "24px 16px 40px" },
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 },
+  headerLeft: { display: "flex", alignItems: "baseline", gap: 10 },
+  pageTitle: { fontSize: 22, fontWeight: 700, margin: 0 },
+  count: { fontSize: 13, color: "var(--text-muted)" },
+  filterBar: { display: "flex", gap: 6, marginBottom: 18 },
+  filterBtn: {
+    padding: "6px 14px",
+    borderRadius: 20,
+    fontSize: 13,
+    textDecoration: "none",
+    border: "1px solid var(--border)",
+    transition: "all 0.15s",
+  },
+  empty: { textAlign: "center", padding: 60, color: "var(--text-muted)" },
+  list: { display: "flex", flexDirection: "column", gap: 8 },
+  questionItem: {
+    display: "block",
+    padding: "16px",
+    textDecoration: "none",
+  },
+  questionMeta: {
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  questionText: {
+    fontSize: 14,
+    lineHeight: 1.6,
+    margin: "0 0 12px",
+    color: "var(--text)",
+  },
+};

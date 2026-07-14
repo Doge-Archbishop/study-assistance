@@ -1,45 +1,296 @@
 @import "tailwindcss";
 
+/* ============================================================
+   学习助手 · 设计系统
+   Google Material Dark + Glassmorphism + Neumorphism
+   ============================================================ */
+
 :root {
-  --bg: #0a0a0f;
-  --surface: #131320;
-  --border: #1e1e32;
-  --text: #e4e4ed;
-  --text-muted: #7777a0;
-  --accent: #6c5ce7;
-  --accent-glow: rgba(108, 92, 231, 0.3);
-  --red: #ff6b6b;
-  --green: #51cf66;
-  --yellow: #ffd43b;
-  --blue: #4dabf7;
+  /* ── 暗黑基调 (Google Material Dark) ── */
+  --bg: #121212;
+  --surface: #1E1E1E;
+  --surface-elevated: #252525;
+  --border: #2D2D2D;
+  --border-light: rgba(255, 255, 255, 0.06);
+
+  /* ── 文字 ── */
+  --text: #E8EAED;
+  --text-secondary: #9AA0A6;
+  --text-muted: #6B7280;
+
+  /* ── Google 四色 (暗黑模式饱和度调整) ── */
+  --blue: #8AB4F8;
+  --red: #F28B82;
+  --yellow: #FDD663;
+  --green: #81C995;
+  --accent: #8AB4F8;
+
+  /* ── 毛玻璃 (Glassmorphism) - 仅侧边栏/浮层/底部栏 ── */
+  --glass-bg: rgba(30, 30, 30, 0.6);
+  --glass-blur: blur(20px);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+
+  /* ── 轻拟物 (Neumorphism) - 按钮按压/进度条/开关 ── */
+  --neu-shadow-inset: inset 1px 1px 3px rgba(0, 0, 0, 0.4),
+    inset -1px -1px 3px rgba(255, 255, 255, 0.03);
+  --neu-shadow-pressed: inset 2px 2px 5px rgba(0, 0, 0, 0.5);
+
+  /* ── 字体 ── */
+  --font-sans: "Inter", "Google Sans", "Noto Sans SC", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* ── 动效 ── */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 150ms var(--ease-out);
+  --transition-base: 200ms var(--ease-out);
+  --transition-slow: 350ms var(--ease-out);
+
+  /* ── 圆角系统 (8px 网格) ── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  /* ── 阴影层级 ── */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.2);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   height: 100%;
+  overflow: hidden;
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+/* ── 噪点纹理 (模仿纸张颗粒感，暗黑模式不显"塑料") ── */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
 
-/* Markdown 渲染样式 */
-.markdown-body { line-height: 1.8; color: var(--text); }
-.markdown-body h1 { font-size: 1.6em; font-weight: 700; margin: 1em 0 0.5em; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
-.markdown-body h2 { font-size: 1.3em; font-weight: 600; margin: 1em 0 0.5em; }
-.markdown-body h3 { font-size: 1.1em; font-weight: 600; margin: 0.8em 0 0.3em; }
-.markdown-body p { margin: 0.5em 0; }
-.markdown-body ul, .markdown-body ol { padding-left: 1.5em; margin: 0.5em 0; }
-.markdown-body li { margin: 0.2em 0; }
+/* ── 滚动条 ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* ── 选中 ── */
+::selection {
+  background: rgba(138, 180, 248, 0.25);
+  color: var(--text);
+}
+
+/* ── 页面过渡 ── */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: page-enter 0.3s var(--ease-out);
+}
+
+/* ── 毛玻璃工具类 ── */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+/* ── 按钮基础 ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  border: 1px solid transparent;
+  outline: none;
+  position: relative;
+}
+
+.btn:active {
+  transform: scale(0.97);
+  box-shadow: var(--neu-shadow-pressed);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #121212;
+  border-color: var(--accent);
+}
+.btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 0 16px rgba(138, 180, 248, 0.25);
+}
+
+.btn-secondary {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+.btn-secondary:hover {
+  border-color: var(--text-muted);
+  background: var(--surface-elevated);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: transparent;
+}
+.btn-ghost:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── 输入框基础 ── */
+.input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  box-sizing: border-box;
+}
+.input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(138, 180, 248, 0.12);
+}
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ── 卡片 ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-base), box-shadow var(--transition-base);
+}
+.card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ── 进度条 ── */
+.progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s var(--ease-out);
+  box-shadow: var(--neu-shadow-inset);
+}
+
+/* ── 标签 ── */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+}
+
+/* ── 分隔线 ── */
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* ── Markdown 渲染样式 ── */
+.markdown-body {
+  line-height: 1.8;
+  color: var(--text);
+}
+.markdown-body h1 {
+  font-size: 1.6em;
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3em;
+}
+.markdown-body h2 {
+  font-size: 1.3em;
+  font-weight: 600;
+  margin: 1em 0 0.5em;
+}
+.markdown-body h3 {
+  font-size: 1.1em;
+  font-weight: 600;
+  margin: 0.8em 0 0.3em;
+}
+.markdown-body p {
+  margin: 0.5em 0;
+}
+.markdown-body ul,
+.markdown-body ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.markdown-body li {
+  margin: 0.2em 0;
+}
 .markdown-body code {
-  background: rgba(108, 92, 231, 0.1);
+  background: rgba(138, 180, 248, 0.1);
   padding: 2px 6px;
   border-radius: 4px;
   font-size: 0.9em;
@@ -48,7 +299,7 @@ html, body {
 .markdown-body pre {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 14px 16px;
   overflow-x: auto;
   margin: 0.8em 0;
@@ -61,14 +312,71 @@ html, body {
 .markdown-body blockquote {
   border-left: 3px solid var(--accent);
   padding-left: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   margin: 0.8em 0;
 }
-.markdown-body table { border-collapse: collapse; width: 100%; margin: 0.8em 0; }
-.markdown-body th, .markdown-body td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
-.markdown-body th { background: var(--surface); }
-.markdown-body img { max-width: 100%; border-radius: 8px; margin: 0.5em 0; }
-.markdown-body a { color: var(--accent); }
-.markdown-body hr { border: none; border-top: 1px solid var(--border); margin: 1.5em 0; }
-.markdown-body strong { font-weight: 600; }
-.markdown-body .katex-display { margin: 1em 0; overflow-x: auto; overflow-y: hidden; }
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.8em 0;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+}
+.markdown-body th {
+  background: var(--surface);
+}
+.markdown-body img {
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  margin: 0.5em 0;
+}
+.markdown-body a {
+  color: var(--accent);
+}
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
+}
+.markdown-body strong {
+  font-weight: 600;
+}
+.markdown-body .katex-display {
+  margin: 1em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ── 响应式断点 ── */
+@media (max-width: 768px) {
+  :root {
+    --radius-md: 10px;
+  }
+
+  /* 显示汉堡按钮 */
+  button[aria-label="打开菜单"] {
+    display: flex !important;
+  }
+
+  /* 移动端主体内边距适配 */
+  main > div > div {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  /* 移动端隐藏噪点纹理（省电） */
+  body::after {
+    opacity: 0.005 !important;
+  }
+}
+
+/* 中等屏幕优化 */
+@media (min-width: 769px) and (max-width: 1024px) {
+  button[aria-label="打开菜单"] {
+    display: none !important;
+  }
+}

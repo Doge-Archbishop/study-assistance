@@ -31,6 +31,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  const relations = await prisma.knowledgeRelation.findMany();
-  return NextResponse.json(relations);
+  try {
+    const relations = await prisma.knowledgeRelation.findMany();
+    return NextResponse.json(relations);
+  } catch (err) {
+    console.error("获取关系列表失败:", err);
+    return NextResponse.json({ error: "服务器错误" }, { status: 500 });
+  }
 }

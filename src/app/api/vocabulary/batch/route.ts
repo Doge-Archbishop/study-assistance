@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       // 逐行解析: "word - meaning" 或 "word\tmeaning" 或 "word,meaning"
       const lines = raw.split("\n").filter((l: string) => l.trim());
       for (const line of lines) {
-        const match = line.match(/^(.+?)[\t,，\s-]{2,}(.+)$/);
+        const match = line.match(/^(.+?)[\t,，\s-]+(.+)$/);
         if (match) {
           words.push({ word: match[1].trim(), meaning: match[2].trim() });
         }
@@ -32,30 +32,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "未解析到有效单词" }, { status: 400 });
     }
 
-    let created = 0;
-    let skipped = 0;
+    // 去重：批量查出现有单词
+    const wordList = [...new Set(words.map((w) => w.word?.trim()).filter(Boolean))];
+    const existing = await prisma.vocabulary.findMany({
+      where: { word: { in: wordList } },
+      select: { word: true },
+    });
+    const existingSet = new Set(existing.map((e) => e.word));
 
-    for (const w of words) {
-      if (!w.word || !w.meaning) { skipped++; continue; }
-      // 去重
-      const exist = await prisma.vocabulary.findFirst({
-        where: { word: w.word.trim() },
-      });
-      if (exist) { skipped++; continue; }
+    // 筛选出新单词
+    const toCreate = words.filter((w) => {
+      if (!w.word || !w.meaning) return false;
+      return !existingSet.has(w.word.trim());
+    });
 
-      await prisma.vocabulary.create({
-        data: {
+    if (toCreate.length > 0) {
+      await prisma.vocabulary.createMany({
+        data: toCreate.map((w) => ({
           word: w.word.trim(),
           pronunciation: w.pronunciation || null,
           partOfSpeech: w.partOfSpeech || null,
           meaning: w.meaning.trim(),
           example: w.example || null,
-        },
+        })),
       });
-      created++;
     }
 
-    return NextResponse.json({ success: true, created, skipped });
+    const skipped = words.length - toCreate.length;
+
+    return NextResponse.json({ success: true, created: toCreate.length, skipped });
   } catch (err) {
     console.error("批量导入失败:", err);
     return NextResponse.json({ error: "导入失败" }, { status: 500 });

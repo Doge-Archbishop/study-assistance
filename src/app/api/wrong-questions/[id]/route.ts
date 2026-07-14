@@ -26,6 +26,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  try {
   const { id } = await params;
   const data = await request.json();
 
@@ -72,4 +73,8 @@ export async function PUT(
   }
 
   return NextResponse.json({ success: true, id: q.id });
+  } catch (err) {
+    console.error("更新错题失败:", err);
+    return NextResponse.json({ error: "服务器错误" }, { status: 500 });
+  }
 }

@@ -7,37 +7,42 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const subject = searchParams.get("subject");
-  const search = searchParams.get("search");
-  const page = parseInt(searchParams.get("page") || "1");
-  const pageSize = 30;
+  try {
+    const { searchParams } = new URL(request.url);
+    const subject = searchParams.get("subject");
+    const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const pageSize = 30;
 
-  const where: Record<string, unknown> = {};
-  if (subject) where.subject = subject;
-  if (search) {
-    where.OR = [
-      { title: { contains: search } },
-      { content: { contains: search } },
-    ];
-  }
+    const where: Record<string, unknown> = {};
+    if (subject) where.subject = subject;
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { content: { contains: search } },
+      ];
+    }
 
-  const [notes, total] = await Promise.all([
-    prisma.note.findMany({
-      where,
-      include: {
-        knowledgePoints: {
-          include: { knowledgePoint: true },
+    const [notes, total] = await Promise.all([
+      prisma.note.findMany({
+        where,
+        include: {
+          knowledgePoints: {
+            include: { knowledgePoint: true },
+          },
         },
-      },
-      orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    prisma.note.count({ where }),
-  ]);
+        orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.note.count({ where }),
+    ]);
 
-  return NextResponse.json({ notes, total, page, pageSize });
+    return NextResponse.json({ notes, total, page, pageSize });
+  } catch (err) {
+    console.error("获取笔记列表失败:", err);
+    return NextResponse.json({ error: "服务器错误" }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -76,7 +81,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error("创建笔记失败:", err);
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "服务器错误" },
+      { error: process.env.NODE_ENV === "production" ? "服务器错误" : (err instanceof Error ? err.message : "服务器错误") },
       { status: 500 },
     );
   }
